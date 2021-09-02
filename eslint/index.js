@@ -1,4 +1,4 @@
-const {json, install, packageJson, lines} = require('mrm-core');
+const {json, install, lines} = require('mrm-core');
 const eslintConfig = require('./.eslintrc.json');
 const prettierConfig = require('./prettierrc.json');
 
@@ -27,7 +27,7 @@ function task() {
     json('.eslintrc.json', eslintConfig).save();
 
     // create prettierrc.json
-    json('prettierrc.json', prettierConfig).save();
+    json('.prettierrc.json', prettierConfig).save();
 
     // create .eslintignore
     const content = [
