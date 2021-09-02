@@ -1,0 +1,14 @@
+{
+  "name": "mrm-preset-mbb-rn",
+  "version": "1.0.0-alpha.1",
+  "description": "MRM preset for rn projects",
+  "main": "config.json",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "mrm-core": "^6.1.5"
+  }
+}
