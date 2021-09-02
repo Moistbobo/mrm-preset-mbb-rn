@@ -4,6 +4,7 @@ const prettierConfig = require('./prettierrc.json');
 
 function task() {
     // delete old files
+    console.info('Deleting .eslintrc.js and .prettierrc.js');
     lines('.eslintrc.js').delete();
     lines('.prettierrc.js').delete();
 
