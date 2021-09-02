@@ -2,7 +2,8 @@
   "aliases": {
     "all": [
       "eslint",
-      "tsalias"
+      "tsalias",
+      "i18n"
     ]
   }
 }
