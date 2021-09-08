@@ -1,0 +1,11 @@
+git_url(ENV["GIT_URL"])
+
+storage_mode(ENV["STORAGE_MODE"])
+
+username(ENV['USERNAME'])
+
+team_id(ENV['TEAM_ID'])
+
+app_identifier(ENV['APP_IDENTIFIERS'].split(","))
+
+type("appstore") # The default type, can be: appstore, adhoc, enterprise or development

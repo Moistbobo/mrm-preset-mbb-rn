@@ -1,0 +1,163 @@
+# uncomment if using circleci
+#before_all do
+  #  setup_circle_ci # uncomment if using circle ci
+#end
+
+platform :android do
+
+    # Moves android artifacts (.apk and .aab) into artifacts/ folder
+    private_lane :moveArtifacts do |values|
+        flavor = values[:flavor]
+        copy_artifacts(
+            artifacts: [
+                Dir.pwd + "/../android/app/build/outputs/apk/"+flavor+"/release/*.apk",
+                Dir.pwd + "/../android/app/build/outputs/bundle/"+flavor+"Release/*.aab"
+            ],
+        )
+    end
+
+    # Convenience lane to build uat or production apk or aab
+    private_lane :buildAndroid do |values|
+        flavor = values[:flavor] # uat or pro
+        mode = values[:mode] # apk or aab
+
+        # clean build folders first
+        gradle(
+            task: "clean",
+            project_dir: "android/"
+        )
+
+        if(mode == "apk")
+            if(flavor == "uat")
+                task = "assembleUatRelease"
+            elsif(flavor == "pro")
+                task = "assembleProductionRelease"
+            end
+        elsif(mode == "aab")
+            if(flavor == "uat")
+                task = "bundleUatRelease"
+            elsif(flavor == "pro")
+                task = "bundleProductionRelease"
+            end
+        end
+
+        gradle(
+            task: task,
+            project_dir: "android/"
+        )
+    end
+
+    # includeApk - build an apk along with aab
+    # onlyApk - only build an apk file
+    valid_android_build_flags = ["includeApk", "onlyApk"]
+
+    # build and bundle uat apk and aab
+    lane :uat do |values|
+        build = values[:build]
+
+        if(build && !valid_android_build_flags.include?(build))
+            UI.error("#{build} is not a valid build: flag. Valid values are: #{valid_android_build_flags.join(", ")}")
+        else
+            if(build == valid_android_build_flags[0] || build == valid_android_build_flags[1])
+                buildAndroid(mode: "apk", flavor: "uat")
+            end
+
+            if(build != valid_android_build_flags[1])
+                buildAndroid(mode:"aab", flavor: "uat")
+            end
+
+            moveArtifacts(flavor: "uat")
+        end
+    end
+
+    lane :production do |values|
+        build = values[:build]
+
+        if(build && !valid_android_build_flags.include?(build))
+            UI.error("#{build} is not a valid build: flag. Valid values are: #{valid_android_build_flags.join(", ")}")
+        else
+            if(build == valid_android_build_flags[0] || build == valid_android_build_flags[1])
+                buildAndroid(mode: "apk", flavor: "pro")
+            end
+
+            if(build != valid_android_build_flags[1])
+                buildAndroid(mode: "aab", flavor: "pro")
+            end
+
+            moveArtifacts(flavor: "pro")
+        end
+    end
+end
+
+platform :ios do
+    private_lane :deployIpa do |values|
+        deployTo = values[:deployTo] # testflight or firebase
+        type = values[:type] # uat or pro
+
+        if(deployTo == "testflight")
+            deliver(
+                ipa: "/artifacts/"+ENV["OUTPUT_NAME"]+"-"+type+".ipa",
+                username: ENV["USERNAME"],
+                team_id: ENV["CONNECT_TEAM_ID"],
+                force: true, # skip html confirmation
+            )
+        elsif (deployTo == "firebase")
+            firebase_app_distribution(
+                googleservice_info_plist_path: "./ios/"+type+"/GoogleService-Info.plist",
+                ipa_path: "./artifacts/"+ENV["OUTPUT_NAME"]+"-"+type+".ipa",
+                testers_file: "./fastlane/firebase/testers.txt",
+                release_notes_file: "./fastlane/firebase/releaseNotes.txt"
+            )
+        end
+    end
+
+    # Lane to handle different ipa build configs
+    private_lane :buildIpa do |values|
+        type = values[:type] # uat or pro
+
+        gym(
+            output_directory: "./artifacts",
+            workspace: ENV["WORKSPACE"],
+            scheme: ENV["SCHEME_NAME"]+"-"+type,
+            output_name: ENV["OUTPUT_NAME"]+"-"+type,
+            silent: true,
+            clean: true,
+            export_options: {
+                 method: "app-store",
+                 stripSwiftSymbols: type == "dev"? false: true
+             }
+        )
+    end
+
+    valid_ios_deployTo = ["firebase", "testflight", "onlyIpa"]
+
+    # builds uat ipa and outputs it to ./artifacts
+    lane :uat do |values|
+        deployTo = values[:deployTo] || "testflight" # testflight or firebase
+
+        if(valid_ios_deployTo.include?(deployTo))
+            buildIpa(type: "uat")
+
+            if(deployTo != valid_ios_deployTo[2])
+                deployIpa(deployTo: deployTo, type: "uat")
+            end
+        else
+            UI.error("#{deployTo} is not a valid deployTo: value. Valid values are #{valid_ios_deployTo.join(", ")}")
+        end
+    end
+
+    # builds pro ipa and outputs it to ./artifacts
+    lane :pro do |values|
+        deployTo = values[:deployTo] || "testflight" # testflight or firebase
+
+        if(valid_ios_deployTo.include?(deployTo))
+            buildIpa(type: "pro")
+            if(deployTo != valid_ios_deployTo[2])
+                deployIpa(deployTo: deployTo, type: "pro")
+            end
+        else
+            UI.error("#{deployTo} is not a valid deployTo: value. Valid values are #{valid_ios_deployTo.join(", ")}")
+        end
+    end
+
+end
